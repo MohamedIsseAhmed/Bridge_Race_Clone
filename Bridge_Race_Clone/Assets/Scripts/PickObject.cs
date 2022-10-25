@@ -5,7 +5,7 @@ using DG.Tweening;
 using System;
 public class PickObject : MonoBehaviour
 {
-    public static PickObject Instance { get; private set; }
+    public event EventHandler<CubeBase> OnPickedCube;
     [SerializeField] private Transform firstCube;
     [SerializeField] private Transform cubeParent;
     [SerializeField] private float yOffset = 0.03f;
@@ -13,23 +13,23 @@ public class PickObject : MonoBehaviour
     [SerializeField] private float distance = 0.2f;
    // [SerializeField] private AnimationCurve curve;
     [SerializeField] private Ease easeTyep;
+    [SerializeField] private CharacterBase characterBase;
     [SerializeField] private List<Transform> pickecObjects;
+    [SerializeField] private List<Transform> listForWinComparism;
     public List<Transform> PickecObjects { get { return pickecObjects; } }
+    public List<Transform> ListForWinComparism { get { return listForWinComparism; } }
     private List<Transform> dropedObjectsList;
     [SerializeField] private bool isPicked = false;
     [SerializeField] private bool doTeween = false;
 
     private Transform pickedCube;
-    [SerializeField] private string myCubeTag;
+    [SerializeField] private string cubeTag;
     private Material material;
     private Tween cubePickUpTween;
+
     private void Awake()
     {
-        if (Instance != null)
-        {
-            Destroy(gameObject);
-        }
-        Instance = this;
+        listForWinComparism = new List<Transform>();
         pickecObjects = new List<Transform>();
         dropedObjectsList = new List<Transform>();
        
@@ -39,30 +39,26 @@ public class PickObject : MonoBehaviour
     {
         if (!isPicked)
         {
-           
             return;
         }
        ReArrangeListOfPicUps();
-        //if (doTeween && pickedCube != null)
-        //{
-        //    pickedCube.transform.DOLocalMove(firstCube.localPosition + Vector3.up * firstCube.localScale.y * yOffset, tweenTime);
-        //}
+      
     }
     private void OnTriggerEnter(Collider other)
     {
 
-        if (other.transform.CompareTag("cube"))
+        if (other.transform.CompareTag(cubeTag))
         {
             PickUpCube(other);
         }   
-        else if (other.CompareTag("drop") && pickecObjects.Count > 0 && !dropedObjectsList.Contains(other.transform))
+        else if (other.CompareTag("drop") && pickecObjects.Count > 0  )
         {
             OnStairsCollision(other);
         }
     }
     private void OnTriggerExit(Collider other)
     {
-        if (other.transform.CompareTag("cube"))
+        if (other.transform.CompareTag(cubeTag))
         {
             doTeween = false;
             cubePickUpTween.Kill(); 
@@ -72,26 +68,45 @@ public class PickObject : MonoBehaviour
     {
         if (pickecObjects.Count > 1)
         {
-            other.gameObject.GetComponent<MeshRenderer>().enabled = true;
-            other.gameObject.GetComponent<MeshRenderer>().material.color = pickecObjects[pickecObjects.Count - 1].GetComponent<MeshRenderer>().sharedMaterial.color;
+            if (!dropedObjectsList.Contains(other.transform) || other.gameObject.GetComponent<MeshRenderer>().material.color!= pickecObjects[pickecObjects.Count - 1].GetComponent<MeshRenderer>().sharedMaterial.color)
+            {
+                other.gameObject.GetComponent<MeshRenderer>().enabled = true;
+                other.gameObject.GetComponent<MeshRenderer>().material.color = pickecObjects[pickecObjects.Count - 1].GetComponent<MeshRenderer>().sharedMaterial.color;
+                if (pickecObjects.Count >= 2)
+                {
 
+                    pickecObjects[pickecObjects.Count - 1].gameObject.SetActive(false);
+                    firstCube = pickecObjects[pickecObjects.Count - 2].transform;
+                    Destroy(pickecObjects[pickecObjects.Count - 1].gameObject);
+                    pickecObjects.Remove(pickecObjects[pickecObjects.Count - 1]);
+
+                }
+            }
+         
         }
-
-        dropedObjectsList.Add(other.transform);
-        if (pickecObjects.Count >= 2)
+        if (!dropedObjectsList.Contains(other.transform))
         {
-            pickecObjects[pickecObjects.Count - 1].gameObject.SetActive(false);
-            firstCube = pickecObjects[pickecObjects.Count - 2].transform;
-            Destroy(pickecObjects[pickecObjects.Count - 1].gameObject);
-            pickecObjects.Remove(pickecObjects[pickecObjects.Count - 1]);
+            dropedObjectsList.Add(other.transform);
+
         }
-     
+        
+
+
         isPicked = true;
       
     }
-
+    public void PlayAnimationsOnWin(bool isThisWiner)
+    {
+        characterBase.PlayAnimationsOnWin(isThisWiner);
+    }
     private void PickUpCube(Collider other)
     {
+        CubeBase cubeBase=other.gameObject.GetComponent<CubeBase>();
+        if (cubeBase != null)
+        {
+            OnPickedCube?.Invoke(this, cubeBase);
+        }
+   
         pickedCube = other.transform;
         other.transform.tag = "picked";
         other.transform.GetComponent<BoxCollider>().enabled = false;
@@ -101,6 +116,7 @@ public class PickObject : MonoBehaviour
         other.transform.localEulerAngles = Vector3.zero;
         firstCube = other.transform;
         pickecObjects.Add(other.transform);
+        listForWinComparism.Add(other.transform);
         isPicked = true;
         doTeween = true;
        

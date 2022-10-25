@@ -2,83 +2,65 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-public class Player : MonoBehaviour
+public class Player : CharacterBase
 {
-    public static Player Instance;
 
     [SerializeField] private DynamicJoystick dynamicJoystick;
     [SerializeField] private Animator animator;
     [SerializeField] private float moveSpeed = 10f;
     [SerializeField] private float turnSpeed = 10f;
     [SerializeField] private float smoothJoystickSpeed = 0.7f;
-    [SerializeField] private float rayDistance = 0.15f;
-    [SerializeField] private float gravityModifier = -9.81f;
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private Transform pickedCubesParent;
+    [SerializeField] private PickObject  PickUpComponent;
     [SerializeField] private Vector3 pickedCubesParentRotaion;
 
-    private Vector3 inputVector;
-    private Vector3 desiredPosition;
-    private Vector3 desiredTurn;
-    private Vector3 velocity;
-    private Vector3 velocityXZ;
-    private Vector3 lookDirection;
-
-    private float desiredBlendSpeed = 0;
-   
-    private bool isPressing = false;
-    private bool isGrounded = false;
- 
-    [SerializeField]private bool isOnSlope = false;
-
+    [SerializeField] private float desiredBlendSpeed = 0;
     private CharacterController characterController;
-
- 
+    private CapsuleCollider capsuleCollider;
     private void Awake()
     {
-        if (Instance != null)
-        {
-            Destroy(gameObject);
-        }
-        Instance = this;
+        isCubesSpwanedOnUpperPlane = false;
+         
     }
     private void Start()
     {
+      
+        levelNumberForAWin = 1;
         characterController = GetComponent<CharacterController>();
+        WinManager.OnWin += WinManager_OnWin;
     }
+
+    private void WinManager_OnWin(CharacterBase character, Vector3 position)
+    {
+        CharacterBase characterBase =  (Player)character;
+        characterBase.transform.position = position;
+        throw new NotImplementedException();
+    }
+
     private void Update()
     {
-      
-        if (Input.GetKeyDown(KeyCode.P))
+        if (WinManager.Instance.IsGameOver)
         {
-            print(PickObject.Instance.PickecObjects.Count);
-        }
-        Process›nput();
-        HandleMovemnt();
-        ChechGround();
-        // Makes the reflected object appear opposite of the original object,
-        // mirrored along the z-axis of the world
-     
-    }
-    private void Process›nput()
-    {
-        inputVector = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        inputVector = Vector3.ClampMagnitude(inputVector, 1);
-    }
-    private void HandleMovemnt()
-    {
-        if (PickObject.Instance.PickecObjects.Count <= 1 && isOnSlope && dynamicJoystick.Vertical > 0)
-        {
-          
             return;
         }
-        if (Input.GetMouseButtonDown(0))
+       
+        HandleMovemnt();
+        
+        ChechGround();     
+    }
+   
+    public override void HandleMovemnt()
+    {
+
+        if (PickUpComponent.PickecObjects.Count <= 1 && isOnStairs && dynamicJoystick.Vertical > 0)
         {
-            isPressing = true;
+            return;
         }
         if (Input.GetMouseButton(0))
         {
-            if (isOnSlope)
+           
+            if (isOnStairs)
             {
                 pickedCubesParent.eulerAngles = transform.localEulerAngles;
             }
@@ -86,13 +68,18 @@ public class Player : MonoBehaviour
             {
                 pickedCubesParent.eulerAngles = new Vector3(pickedCubesParentRotaion.x, transform.localEulerAngles.y, transform.localEulerAngles.z);
             }
-           
+            float blendSpeedNormalized = desiredPosition.magnitude / 1;
+
+            desiredBlendSpeed = Mathf.Lerp(animator.GetFloat("BlendSpeed"), 1, blendSpeedNormalized);
+            animator.SetFloat("BlendSpeed", desiredBlendSpeed);
+
+
         }
         if (Input.GetMouseButtonUp(0))
         {
             desiredBlendSpeed = 0;
             animator.SetFloat("BlendSpeed", desiredBlendSpeed);
-            if (isOnSlope)
+            if (isOnStairs)
             {
                 pickedCubesParent.eulerAngles = transform.localEulerAngles;
             }
@@ -102,94 +89,103 @@ public class Player : MonoBehaviour
             }
           
         }
-     
-       
+      
+
         float horizontal = dynamicJoystick.Horizontal* smoothJoystickSpeed;
         float vertical = dynamicJoystick.Vertical* smoothJoystickSpeed;
         desiredPosition = new Vector3(horizontal * moveSpeed * Time.deltaTime, 0, vertical * moveSpeed * Time.deltaTime);
 
 
-        //transform.position += desiredPosition;
-        if (!isOnSlope)
+        
+        if (!isOnStairs)
         {
             desiredTurn = Vector3.forward * vertical + Vector3.right * horizontal;
         }
        
-        if (desiredTurn != Vector3.zero && !isOnSlope)
+        if (desiredTurn != Vector3.zero && !isOnStairs)
         { 
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredTurn), turnSpeed * Time.deltaTime);
         }
 
-        float blendSpeedNormalized = desiredPosition.magnitude / 1;
-        desiredBlendSpeed = Mathf.Lerp(animator.GetFloat("BlendSpeed"), 1, blendSpeedNormalized);
-        animator.SetFloat("BlendSpeed", desiredBlendSpeed);
 
-
+       
 
         velocityXZ = velocity;
         velocityXZ.y = 0;
 
         velocityXZ = Vector3.Lerp(velocityXZ,  desiredPosition, 10 * Time.deltaTime);
         velocity = new Vector3(velocityXZ.x, velocity.y, velocityXZ.z);
-     
+        
         characterController.Move(velocity);
        
     }
-    private void ChechGround()
+  
+    public override void ChechGround()
     {
-     
-   
+      
         Ray ray = new Ray(transform.position+Vector3.up*0.1f, Vector3.down);
         RaycastHit hit;
+      
         if(Physics.Raycast(ray,out hit, rayDistance, groundLayer))
         {
             
             velocity.y = 0;
           
             isGrounded = true;
-        
-            
+           
+            Debug.DrawLine(ray.origin, ray.direction * 10, Color.blue);
             if (hit.collider.CompareTag("Slope"))
             {
                 
-                isOnSlope = true;
+                isOnStairs = true;
                 if (dynamicJoystick.Vertical < 0)
                 {
                     desiredPosition = RotateVector(hit.normal, -90);
+                    Debug.DrawLine(ray.origin, desiredPosition * 10, Color.green);
                     ClimpLader(desiredPosition);
                 }
                 else if(dynamicJoystick.Vertical > 0)
                 {
                     desiredPosition = RotateVector(hit.normal, 90);
+                    Debug.DrawLine(ray.origin, desiredPosition * 10, Color.red);
                     ClimpLader(desiredPosition);
+                    print("stop pressing");
+
                 }
+               
             }
 
             else
             {
-                isOnSlope = false;
+                isOnStairs = false;
                 velocity.y += gravityModifier * Time.deltaTime;
+              
             }
-           
+          
         }
         else
         {
-            if (!isOnSlope)
+            if (!isOnStairs)
             {
                 velocity.y += gravityModifier * Time.deltaTime;
                 isGrounded = false;
             }
-           
-          
+
+
         }
-      
+
         velocity.y = Mathf.Clamp(velocity.y, -10, 10);
     }
     private void OnCollisionEnter(Collision collision)
     {
         print("collisin");
     }
-  
+    private void ClampY()
+    {
+        Vector3 position = transform.position;
+        position.y = Mathf.Clamp(position.y,0, 1);
+        transform.position = position;
+    }
     private Vector3 RotateVector(Vector3 direction,float angel)
     {
         return Quaternion.Euler(angel, 0, 0) * direction;
@@ -199,5 +195,38 @@ public class Player : MonoBehaviour
         velocity.y += gravityModifier * Time.deltaTime;
         transform.forward = turnDirection;
         desiredTurn = turnDirection;
+    }
+    public override void IncreaseNumber()
+    {
+       levelNumberForAWin++;
+    }
+    public override void SpawnCubes(Transform GroundPlane)
+    {
+        print("Tray on Upper Plane");
+        if (!isCubesSpwanedOnUpperPlane && levelNumberForAWin<=2)
+        {
+            isCubesSpwanedOnUpperPlane = true;
+            upperPlane = GroundPlane;
+            SpawnSytem.Instance.OnDoorOpened(upperPlane);
+            levelNumberForAWin++;
+            print(levelNumberForAWin);
+            print("spawnCubes on Upper Plane");
+        }
+        else if (levelNumberForAWin >= 2)
+        {
+            WinManager.Instance.DeclareWinner();
+        }
+    }
+
+    public override void PlayAnimationsOnWin(bool isThisWiner)
+    {
+        if (isThisWiner)
+        {
+            animator.SetTrigger("Win");
+        }
+        else
+        {
+            animator.SetTrigger("Sad");
+        }
     }
 }

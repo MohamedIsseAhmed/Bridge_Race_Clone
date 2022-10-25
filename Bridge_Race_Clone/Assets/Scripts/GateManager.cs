@@ -1,43 +1,62 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using System;
 public class GateManager : MonoBehaviour
 {
+    public static GateManager Instance;
     [SerializeField] private Transform gate1;
     [SerializeField] private Transform gate2;
+    [SerializeField] private Transform upperPlane;
     [SerializeField] private float xDirectionscaleTarget;
     [SerializeField] private float tweenDuratin=0.3f;
-    private bool isCollided = false;
+    [SerializeField] private bool isThisGateFinalGate=false;
+    private bool isOpned = false;
     private BoxCollider boxCollider;
+    public event EventHandler<Transform> OnDoorOpened;
+    
     private void Awake()
     {
-       boxCollider=GetComponent<BoxCollider>();
+        Instance = this;
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.transform.CompareTag("Player"))
+        if (!isThisGateFinalGate)
         {
-           
-            if (Vector3.Dot(transform.forward, other.transform.forward) < 0 && isCollided)
+            if (other.transform.CompareTag("Player"))
+            {
+
+                CharacterBase character = other.gameObject.GetComponent<CharacterBase>();
+                if (!isOpned)
+                {
+                    gate1.DOScaleX(xDirectionscaleTarget, tweenDuratin);
+                    gate2.DOScaleX(xDirectionscaleTarget, tweenDuratin);
+
+                    if (character != null)
+                    {
+                        character.SpawnCubes(upperPlane);
+                        print("call spawnFun");
+
+                    }
+                    isOpned = true;
+                }
+                else
+                {
+                    character.IncreaseNumber();
+                }
+
+
+            }
+        }
+        else
+        {
+            if (!isOpned)
             {
                
-            }
-          
-            if (!isCollided)
-            {
                 gate1.DOScaleX(xDirectionscaleTarget, tweenDuratin);
-                gate2.DOScaleX(xDirectionscaleTarget, tweenDuratin).OnComplete(() =>
-                {
-
-                });
+                gate2.DOScaleX(xDirectionscaleTarget, tweenDuratin);
+                isOpned = true;
             }
-            isCollided = true;
-            //if (Vector3.Dot(transform.forward, other.transform.forward) < 0)
-            //{
-
-            //    boxCollider.isTrigger = false;
-            //}
         }
+      
     }
 }
