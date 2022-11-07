@@ -4,15 +4,15 @@ using UnityEngine;
 
 public class GreenCube : CubeBase
 {
-    // Start is called before the first frame update
-    void Start()
+    [SerializeField] private Transform[] trailHolders;
+    public override void StopTrailRendereOnTop()
     {
-        
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+        for (int i = 0; i < trailHolders.Length; i++)
+        {
+            TrailRenderer trail = trailHolders[i].GetComponent<TrailRenderer>();
+          
+            trail.enabled = false;
+        }
     }
 }

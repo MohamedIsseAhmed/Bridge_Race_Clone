@@ -24,8 +24,8 @@ public class GateManager : MonoBehaviour
         {
             if (other.transform.CompareTag("Player"))
             {
-
                 CharacterBase character = other.gameObject.GetComponent<CharacterBase>();
+
                 if (!isOpned)
                 {
                     gate1.DOScaleX(xDirectionscaleTarget, tweenDuratin);
@@ -49,12 +49,15 @@ public class GateManager : MonoBehaviour
         }
         else
         {
+            CharacterBase character = other.gameObject.GetComponent<CharacterBase>();
+          
+            gate1.DOScaleX(xDirectionscaleTarget, tweenDuratin);
+            gate2.DOScaleX(xDirectionscaleTarget, tweenDuratin);
+          
             if (!isOpned)
             {
                
-                gate1.DOScaleX(xDirectionscaleTarget, tweenDuratin);
-                gate2.DOScaleX(xDirectionscaleTarget, tweenDuratin);
-                isOpned = true;
+                
             }
         }
       

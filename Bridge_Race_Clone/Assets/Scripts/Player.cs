@@ -9,6 +9,8 @@ public class Player : CharacterBase
     [SerializeField] private Animator animator;
     [SerializeField] private float moveSpeed = 10f;
     [SerializeField] private float turnSpeed = 10f;
+    [SerializeField] private float maxAngInRad = 1f;
+    [SerializeField] private float rayOffsetDistance = 1f;
     [SerializeField] private float smoothJoystickSpeed = 0.7f;
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private Transform pickedCubesParent;
@@ -18,25 +20,36 @@ public class Player : CharacterBase
     [SerializeField] private float desiredBlendSpeed = 0;
     private CharacterController characterController;
     private CapsuleCollider capsuleCollider;
+    private Rigidbody rigidbody;
+
+    [SerializeField] private bool stop = false;
+
+    private float angel = 0;
+    [SerializeField] private float angelSpeed = 5;
+ 
+    [SerializeField] private float smoothSpeed=0.1f;
+    [SerializeField] private float gravitySpeed=-9.81f;
+    [SerializeField] private float smoothTime = 0.3f;
+    [SerializeField] private Vector3 moveVelocity;
+
+    private float smoothInputMagnitude;
+    private float smoothVelocity;
+    private float yVelocityTarget;
     private void Awake()
     {
+        rigidbody=GetComponent<Rigidbody>();    
         isCubesSpwanedOnUpperPlane = false;
          
     }
     private void Start()
     {
-      
+        Physics.gravity =new Vector3(0, gravitySpeed,0);
         levelNumberForAWin = 1;
         characterController = GetComponent<CharacterController>();
-        WinManager.OnWin += WinManager_OnWin;
+        
     }
 
-    private void WinManager_OnWin(CharacterBase character, Vector3 position)
-    {
-        CharacterBase characterBase =  (Player)character;
-        characterBase.transform.position = position;
-        throw new NotImplementedException();
-    }
+ 
 
     private void Update()
     {
@@ -44,30 +57,33 @@ public class Player : CharacterBase
         {
             return;
         }
-       
+      
         HandleMovemnt();
-        
-        ChechGround();     
+        ChechGround();
+
     }
    
     public override void HandleMovemnt()
     {
-
-        if (PickUpComponent.PickecObjects.Count <= 1 && isOnStairs && dynamicJoystick.Vertical > 0)
+        if(stop && dynamicJoystick.Vertical > 0 && PickUpComponent.PickecObjects.Count <=0)
         {
-            return;
+            smoothJoystickSpeed = 0;          
+             return;
         }
+        else
+        {
+            smoothJoystickSpeed = 0.7f;
+        }
+      
+        if(isOnStairs && PickUpComponent.PickecObjects.Count <= 1)
+        {
+            print("return");
+        }
+
         if (Input.GetMouseButton(0))
         {
-           
-            if (isOnStairs)
-            {
-                pickedCubesParent.eulerAngles = transform.localEulerAngles;
-            }
-            else
-            {
-                pickedCubesParent.eulerAngles = new Vector3(pickedCubesParentRotaion.x, transform.localEulerAngles.y, transform.localEulerAngles.z);
-            }
+
+         
             float blendSpeedNormalized = desiredPosition.magnitude / 1;
 
             desiredBlendSpeed = Mathf.Lerp(animator.GetFloat("BlendSpeed"), 1, blendSpeedNormalized);
@@ -79,107 +95,86 @@ public class Player : CharacterBase
         {
             desiredBlendSpeed = 0;
             animator.SetFloat("BlendSpeed", desiredBlendSpeed);
-            if (isOnStairs)
-            {
-                pickedCubesParent.eulerAngles = transform.localEulerAngles;
-            }
-            else
-            {
-                pickedCubesParent.eulerAngles = new Vector3(pickedCubesParentRotaion.x, transform.localEulerAngles.y, transform.localEulerAngles.z);
-            }
           
+
         }
+
+
+
+        float horizontal = dynamicJoystick.Horizontal * smoothJoystickSpeed;
+        float vertical = dynamicJoystick.Vertical * smoothJoystickSpeed;
+
+        float yVelocity = Mathf.SmoothDamp(rigidbody.velocity.y, rigidbody.velocity.y, ref yVelocityTarget, smoothTime);
+        desiredPosition = new Vector3(horizontal, 0, vertical) + new Vector3(0, yVelocity, 0);
+        float inputMagnitude = desiredPosition.magnitude;
+        //smoothInputMagnitude = Mathf.SmoothDamp(smoothInputMagnitude, inputMagnitude, ref smoothVelocity, smoothSpeed);
+        float ang›nDeg = Mathf.Atan2(desiredPosition.x, desiredPosition.z) * Mathf.Rad2Deg;
+
+        angel = Mathf.LerpAngle(angel, ang›nDeg, angelSpeed * Time.deltaTime * inputMagnitude);
+        transform.rotation = Quaternion.AngleAxis(angel, Vector3.up);
+
+       
+
+       
+        moveVelocity = desiredPosition * moveSpeed * Time.deltaTime;
+       
       
-
-        float horizontal = dynamicJoystick.Horizontal* smoothJoystickSpeed;
-        float vertical = dynamicJoystick.Vertical* smoothJoystickSpeed;
-        desiredPosition = new Vector3(horizontal * moveSpeed * Time.deltaTime, 0, vertical * moveSpeed * Time.deltaTime);
-
-
-        
-        if (!isOnStairs)
-        {
-            desiredTurn = Vector3.forward * vertical + Vector3.right * horizontal;
-        }
+        transform.Translate(moveVelocity, Space.World);
        
-        if (desiredTurn != Vector3.zero && !isOnStairs)
-        { 
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredTurn), turnSpeed * Time.deltaTime);
-        }
-
-
-       
-
-        velocityXZ = velocity;
-        velocityXZ.y = 0;
-
-        velocityXZ = Vector3.Lerp(velocityXZ,  desiredPosition, 10 * Time.deltaTime);
-        velocity = new Vector3(velocityXZ.x, velocity.y, velocityXZ.z);
-        
-        characterController.Move(velocity);
        
     }
+    private void MoveWithRay()
+    {
+        Vector3 mousePos = Input.mousePosition;
+        mousePos.z = Camera.main.transform.position.z;
+
+        Ray ray=Camera.main.ScreenPointToRay(mousePos);
+        if(Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity,groundLayer))
+        {
+            Vector3 hitpoint=hit.point;
+            transform.position = Vector3.Lerp(transform.position, hitpoint, moveSpeed * Time.deltaTime);
+            Vector3 direction =new Vector3(hitpoint.x,transform.position.y, hitpoint.z);    
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction - transform.position).normalized, turnSpeed * Time.deltaTime);
+           
+        }
+    }
   
+
     public override void ChechGround()
     {
       
-        Ray ray = new Ray(transform.position+Vector3.up*0.1f, Vector3.down);
+        Ray ray = new Ray(transform.position+Vector3.forward*rayOffsetDistance+Vector3.up*0.1f, Vector3.down);
         RaycastHit hit;
       
-        if(Physics.Raycast(ray,out hit, rayDistance, groundLayer))
+        if(Physics.Raycast(ray,out hit, rayDistance, groundLayer,QueryTriggerInteraction.Collide))
         {
             
-            velocity.y = 0;
-          
             isGrounded = true;
            
             Debug.DrawLine(ray.origin, ray.direction * 10, Color.blue);
-            if (hit.collider.CompareTag("Slope"))
+          
+            if (hit.collider.transform.CompareTag("drop"))
             {
-                
-                isOnStairs = true;
-                if (dynamicJoystick.Vertical < 0)
+                if(PickUpComponent.PickecObjects.Count>0 || hit.collider.gameObject.GetComponent<MeshRenderer>().material.color == PickUpComponent.FirstCubeColor)
                 {
-                    desiredPosition = RotateVector(hit.normal, -90);
-                    Debug.DrawLine(ray.origin, desiredPosition * 10, Color.green);
-                    ClimpLader(desiredPosition);
+                    stop = false;
                 }
-                else if(dynamicJoystick.Vertical > 0)
+                else if(PickUpComponent.PickecObjects.Count <= 0 || hit.collider.gameObject.GetComponent<MeshRenderer>().material.color != PickUpComponent.FirstCubeColor)
                 {
-                    desiredPosition = RotateVector(hit.normal, 90);
-                    Debug.DrawLine(ray.origin, desiredPosition * 10, Color.red);
-                    ClimpLader(desiredPosition);
-                    print("stop pressing");
+                    stop = true;
+                }
 
-                }
-               
             }
-
             else
             {
-                isOnStairs = false;
-                velocity.y += gravityModifier * Time.deltaTime;
-              
+                stop = false;
             }
+
           
         }
-        else
-        {
-            if (!isOnStairs)
-            {
-                velocity.y += gravityModifier * Time.deltaTime;
-                isGrounded = false;
-            }
-
-
-        }
-
-        velocity.y = Mathf.Clamp(velocity.y, -10, 10);
+    
     }
-    private void OnCollisionEnter(Collision collision)
-    {
-        print("collisin");
-    }
+  
     private void ClampY()
     {
         Vector3 position = transform.position;
@@ -193,7 +188,9 @@ public class Player : CharacterBase
     private void ClimpLader(Vector3 turnDirection)
     {
         velocity.y += gravityModifier * Time.deltaTime;
-        transform.forward = turnDirection;
+        float ang›nDeg = Mathf.Atan2(turnDirection.x, turnDirection.z) * Mathf.Rad2Deg;
+        angel = Mathf.LerpAngle(angel, ang›nDeg, angelSpeed * Time.deltaTime * turnDirection.magnitude);
+        transform.rotation = Quaternion.AngleAxis(angel, Vector3.up);
         desiredTurn = turnDirection;
     }
     public override void IncreaseNumber()
@@ -227,6 +224,10 @@ public class Player : CharacterBase
         else
         {
             animator.SetTrigger("Sad");
+        }
+        for (int i = 1; i < transform.childCount; i++)
+        {
+            transform.GetChild(i).gameObject.SetActive(false);
         }
     }
 }

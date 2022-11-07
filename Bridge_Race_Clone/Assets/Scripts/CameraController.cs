@@ -1,5 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
 using UnityEngine;
 
 public class CameraController : MonoBehaviour
@@ -10,7 +9,10 @@ public class CameraController : MonoBehaviour
     [SerializeField] private float turnSpeedlowSpeed = 5;
     [SerializeField] private Vector3 followOffset;
     [SerializeField] private Vector3 camPositionOnWin;
-
+    private void Start()
+    {
+        WinManager.OnWinCameraPositionEvent += CamerPositionOnWin;
+    }
     private void LateUpdate()
     {
         if (!WinManager.Instance.IsGameOver)
@@ -25,11 +27,16 @@ public class CameraController : MonoBehaviour
     {
         Vector3 toPlayer=(player.position-transform.position).normalized;
         Quaternion lookDirection = Quaternion.LookRotation(toPlayer);
-        transform.position = Vector3.Lerp(transform.position, player.position + followOffset, followSpeed * Time.deltaTime);
-        transform.rotation = Quaternion.Slerp(transform.rotation, lookDirection, turnSpeedlowSpeed * Time.deltaTime);
+        Vector3 desiredPos = player.position + followOffset;
+        transform.position = Vector3.Lerp(transform.position, desiredPos, followSpeed * Time.deltaTime);
+      
     }
-    private void CamerPositionOnWin()
+    private void CamerPositionOnWin(object s,EventArgs e)
     {
-        transform.position = transform.position+camPositionOnWin;
+        transform.position =camPositionOnWin;
+    }
+    private void OnDisable()
+    {
+        WinManager.OnWinCameraPositionEvent -= CamerPositionOnWin;
     }
 }

@@ -29,6 +29,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 456335499506815518, guid: d2e3239760400c34e867db498911d634,
         type: 3}
+      propertyPath: yOffset
+      value: 1.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 456335499506815518, guid: d2e3239760400c34e867db498911d634,
+        type: 3}
       propertyPath: characterBase
       value: 
       objectReference: {fileID: 551846656917318196}
@@ -211,6 +216,7 @@ MonoBehaviour:
   turnSpeed: 10
   moveSpeed: 1.86
   waitTime: 0.1
+  rayOffsetDistance: 0.12
   waitTimeToGoBack: 0.5
   angel: 90
   resultHits: []
@@ -234,5 +240,7 @@ MonoBehaviour:
   minNumber: 5
   testCube: {fileID: 0}
   enemyState: 0
+  onStairs: 0
   minWinLevelNumber: 1
   maxWinLevelNumber: 2
+  enemyData: {fileID: 11400000, guid: d18941aea8c18d944bf08cd2c202f633, type: 2}

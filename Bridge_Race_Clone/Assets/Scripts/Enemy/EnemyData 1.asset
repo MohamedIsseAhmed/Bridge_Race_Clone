@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a0afaf46b03d0a4f9fb315ee604083d, type: 3}
+  m_Name: EnemyData 1
+  m_EditorClassIdentifier: 
+  targetPaths:
+  - {fileID: 8012045654493600552, guid: a065e80341b956a48af6dfb9cabfd6f0, type: 3}
+  - {fileID: 2015167675093470463, guid: e77189613efe57a43a7831a0d35c704b, type: 3}
+  - {fileID: 4757479300300661367, guid: 67c3a66bd5c8010428b818da078f4cd9, type: 3}
+  - {fileID: 6310441221568038810, guid: 344037195f0f97e4880a2885cf198642, type: 3}
+  - {fileID: 8549288948069806783, guid: 874bbf74ef27a5847aea4e22fc9725f8, type: 3}
+  - {fileID: 8100256257822124892, guid: 2737771b3de562141818c8c4bc12281f, type: 3}
+  RandomNumberForStoppinCollcting: 5
+  maxRandomNumber: 25
+  minRandomNumber: 0
+  rayDistance: 2
+  rayOffsetDistance: 0.1
+  distanceToCube: 0.1
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64

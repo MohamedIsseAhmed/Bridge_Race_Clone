@@ -66,11 +66,7 @@ public class SpawnSytem : MonoBehaviour
         cubeInstaintaited[1] = greenCubeInstaintaited.ToArray();
         cubeInstaintaited[2] = redCubeInstaintaited.ToArray();   
 
-        print(plane.GetComponent<BoxCollider>().bounds.min);
-        print(plane.GetComponent<BoxCollider>().bounds.extents);
-        print(plane.GetComponent<BoxCollider>().bounds.max);
-        print(plane.GetComponent<BoxCollider>().bounds.center);
-        print(plane.GetComponent<BoxCollider>().bounds.size);
+      
     }
   
     public void SpawnCubes(Transform plane)
@@ -118,7 +114,7 @@ public class SpawnSytem : MonoBehaviour
         if (targetPlane != null)
         {
             currentPlane = targetPlane;
-            print("Instantaite new cubes");
+           
             blueCubeInstaintaited.Clear();
             greenCubeInstaintaited.Clear();
             redCubeInstaintaited.Clear();
@@ -129,10 +125,7 @@ public class SpawnSytem : MonoBehaviour
             cubeInstaintaited[2] = redCubeInstaintaited.ToArray();
             
         }
-        else
-        {
-            print("Plane is Null");
-        }
+      
   
     }
   

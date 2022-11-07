@@ -14,6 +14,7 @@ public class EnemyAİ : CharacterBase
     [SerializeField] private float turnSpeed = 5f;
     [SerializeField] private float moveSpeed = 8f;
     [SerializeField] private float waitTime = 0.1f;
+    [SerializeField] private float rayOffsetDistance = 0.1f;
     [SerializeField] private float waitTimeToGoBack = 0.1f;
     [SerializeField] private float angel = 90f;
     [SerializeField] Collider[] resultHits;
@@ -34,29 +35,28 @@ public class EnemyAİ : CharacterBase
  
    
     [SerializeField] private Transform testCube;
-    [SerializeField] private EnemyState enemyState;
-   
-    private bool shouldGoBack=false;
+    [SerializeField] private EnemyStateEnum enemyState;
+
+    [SerializeField] private bool onStairs=false;
     private NavMeshAgent agent;
     private Vector3 hitRight;
     private bool isDoorOpened = false;
     [SerializeField] private int minWinLevelNumber = 1;
     [SerializeField] private int maxWinLevelNumber = 2;
+    [SerializeField] private EnemyDataSO enemyData;
+    private EnemyState enemyStateMachine;
+    public event EventHandler OnDoorOpened;
     private void Awake()
     {
-        enemyState = EnemyState.CollectingCubeState;
+        enemyState = EnemyStateEnum.CollectingCubeState;
         agent = GetComponent<NavMeshAgent>();
        
     }
-    private IEnumerator  Start()
+    private void  Start()
     {
         levelNumberForAWin = 1;
       
         cubePicker.OnPickedCube += RemovePickedCubeFromLits;
-       
-       
-        yield return new WaitForSeconds(1);
-      
 
         if (characterColorType == CharacterColorType.Red)
         {
@@ -67,33 +67,31 @@ public class EnemyAİ : CharacterBase
         }
         else if (characterColorType == CharacterColorType.Blue)
         {
-            targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[0].Length];
+            targetCubes = new RedCube[SpawnSytem.Instance.CubeInstaintaited[0].Length];
             targetCubes = SpawnSytem.Instance.CubeInstaintaited[0];
             targetCubeList = new List<CubeBase>();
             targetCubeList= targetCubes.ToList();
         }
         else if(characterColorType == CharacterColorType.Green)
         {
-            targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[1].Length];
+            targetCubes = new GreenCube[SpawnSytem.Instance.CubeInstaintaited[1].Length];
             targetCubes = SpawnSytem.Instance.CubeInstaintaited[1];
             targetCubeList = new List<CubeBase>();
             targetCubeList = targetCubes.ToList();
         }
-   
+
+
      
-        animator.SetFloat("BlendSpeed", 0.85f);
-        randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
-      
+        enemyStateMachine = new CollectCubesState(agent, animator, targetCubeList, enemyData,characterColorType, isDoorOpened);
+
+        
     }
 
   
 
     private void Update()
     {
-        
-        ProseccAIStates();
-        levelNumberForAWin = Mathf.Clamp(levelNumberForAWin, minWinLevelNumber, maxWinLevelNumber);
-        ChechGround();
+       enemyStateMachine=enemyStateMachine.ProcessStates();
     }
 
     private void ProseccAIStates()
@@ -109,25 +107,25 @@ public class EnemyAİ : CharacterBase
         }
         switch (enemyState)
         {
-            case EnemyState.CollectingCubeState:
+            case EnemyStateEnum.CollectingCubeState:
                 StartCoroutine(CollectCubeCoroutine());
                 break;
-            case EnemyState.GoToTarget:
+            case EnemyStateEnum.GoToTarget:
                 StartCoroutine(GoToTarget1Coroutine());
                 break;
-            case EnemyState.GoToUpState:
+            case EnemyStateEnum.GoToUpState:
                 StartCoroutine(GoToPath2Coroutine());
                 break;
-            case EnemyState.GoToDownState:
+            case EnemyStateEnum.GoToDownState:
                 StartCoroutine(GoToTarget1Coroutine());
                 break;
-            case EnemyState.WaitingState:
+            case EnemyStateEnum.WaitingState:
                 StartCoroutine(WaitingCoroutine());
                 break;
-            case EnemyState.WinState:
+            case EnemyStateEnum.WinState:
 
                 break;
-            case EnemyState.GameOverState:
+            case EnemyStateEnum.GameOverState:
                 break;
             default:
                 break;
@@ -136,34 +134,52 @@ public class EnemyAİ : CharacterBase
 
     private void RemovePickedCubeFromLits(object s,CubeBase cubeBase)
     {
-        if (targetCubeList.Contains(cubeBase))
+        if(enemyStateMachine is CollectCubesState || enemyStateMachine is ClimpStairsState || enemyStateMachine is GoDownFromStairs)
         {
-            randomNuber++;
-            targetCubeList.Remove(cubeBase);    
+            if (enemyStateMachine.targetCubes.Contains(cubeBase))
+            {
+                enemyData.RandomNumberForStoppinCollcting++;
+                enemyStateMachine.targetCubes.Remove(cubeBase);
+            }
         }
+      
     }
     
   
     public override void ChechGround()
     {
-        Ray ray = new Ray(transform.position + Vector3.up * 0.1f, Vector3.down);
+        Ray ray = new Ray(transform.position + Vector3.forward * rayOffsetDistance + Vector3.up * 0.1f, Vector3.down);
         RaycastHit hit;
         if (Physics.Raycast(ray, out hit, rayDistance, groundLayer))
         {
-        
-            if (hit.collider.CompareTag("Slope"))
+            if (hit.collider.transform.CompareTag("drop") && !hit.collider.gameObject.GetComponent<MeshRenderer>().enabled)
             {
-                isOnStairs = true;
-              
-                desiredTurn = hit.collider.transform.right;
-                Debug.DrawRay(ray.origin, ray.direction * 10, Color.red);
-            }
+                Debug.DrawLine(ray.origin, desiredPosition * 10, Color.black);
+                print("stop");
 
-            else
+                onStairs = true;
+            }
+            else if (hit.collider.transform.CompareTag("drop") && hit.collider.gameObject.GetComponent<MeshRenderer>().enabled)
             {
-                isOnStairs = false;
-            }
+                print("go on");
+                //desiredPosition.y += gravityModifier * Time.deltaTime;
 
+                onStairs = false;
+            }
+            
+            //if (hit.collider.CompareTag("Slope"))
+            //{
+            //    isOnStairs = true;
+
+            //    desiredTurn = hit.collider.transform.right;
+            //    Debug.DrawRay(ray.origin, ray.direction * 10, Color.red);
+            //}
+
+            //else
+            //{
+            //    isOnStairs = false;
+            //}
+            Debug.DrawRay(ray.origin, ray.direction * 10, Color.red);
         }
       
     }
@@ -171,19 +187,23 @@ public class EnemyAİ : CharacterBase
     {
         if (other.transform.CompareTag("door"))
         {
-            enemyState = EnemyState.WaitingState;
-           
-          
+            enemyState = EnemyStateEnum.WaitingState;
+            isDoorOpened = true;
+
+
         }
     }
     private IEnumerator WaitingCoroutine()
     {
-        agent.isStopped = true;
+        if (agent.enabled)
+        {
+            agent.isStopped = true;
+        }
         yield return new WaitForSeconds(1);
         if (isDoorOpened || isCubesSpwanedOnUpperPlane)
         {
             yield return null;
-            enemyState = EnemyState.CollectingCubeState;
+            enemyState = EnemyStateEnum.CollectingCubeState;
         }
         
     }
@@ -195,7 +215,7 @@ public class EnemyAİ : CharacterBase
     {
         if (levelNumberForAWin == 1)
         {
-            if (agent.isStopped)
+            if (agent.enabled)
             {
                 agent.isStopped = false;
             }
@@ -203,17 +223,17 @@ public class EnemyAİ : CharacterBase
           
             if (Vector3.Distance(firstStagepaths[0].position, transform.position) <= distanceToCube )
             {
-                if (!isOnStairs && cubePicker.PickecObjects.Count > 1)
+                if (!onStairs && cubePicker.PickecObjects.Count > 1)
                 {
-                    enemyState = EnemyState.GoToUpState;
+                    enemyState = EnemyStateEnum.GoToUpState;
                     yield break;
                 }
                 else if(cubePicker.PickecObjects.Count <= 1)
                 {
-                    yield return null;
-                    agent.enabled = false;
+                   
+                 
                     randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
-                    enemyState = EnemyState.CollectingCubeState;
+                    enemyState = EnemyStateEnum.CollectingCubeState;
                     yield break;
                 }
             
@@ -223,7 +243,7 @@ public class EnemyAİ : CharacterBase
         }
         else if(levelNumberForAWin == 2)
         {
-            if (agent.isStopped)
+            if (agent.enabled)
             {
                 agent.isStopped = false;
             }
@@ -231,17 +251,18 @@ public class EnemyAİ : CharacterBase
 
             if (Vector3.Distance(secondtStagepaths[0].position, transform.position) <= distanceToCube)
             {
-                if (!isOnStairs && cubePicker.PickecObjects.Count > 1)
+                Debug.DrawRay(transform.position,-transform.up * 10, Color.blue);
+
+                if (!onStairs && cubePicker.PickecObjects.Count > 1)
                 {
-                    enemyState = EnemyState.GoToUpState;
+                    enemyState = EnemyStateEnum.GoToUpState;
                     yield break;
                 }
                 else if (cubePicker.PickecObjects.Count <= 1)
                 {
-                    yield return null;
-                    agent.enabled = false;
+                  
                     randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
-                    enemyState = EnemyState.CollectingCubeState;
+                    enemyState = EnemyStateEnum.CollectingCubeState;
                     yield break;
                 }
 
@@ -264,19 +285,19 @@ public class EnemyAİ : CharacterBase
            
             agent.SetDestination(firstStagepaths[1].position);
 
-           
-            if (isOnStairs && cubePicker.PickecObjects.Count <= 1 )
+            if (onStairs && cubePicker.PickecObjects.Count <= 1 )
             {
-                yield return null;
+               
                 if (isDoorOpened && isCubesSpwanedOnUpperPlane)
                 {
-                    yield return null;
+                    
                     if (agent.enabled)
                     {
                         agent.isStopped = true;
                     }
                     ClampWinLevelNumneer();
                     OnRespawndedCubesUpdateTargetListAndEnemyState();
+                     yield break;
                 }
                 else
                 {
@@ -286,7 +307,7 @@ public class EnemyAİ : CharacterBase
                         agent.isStopped = true;
                     }
                 
-                    enemyState = EnemyState.GoToDownState;
+                    enemyState = EnemyStateEnum.GoToDownState;
                     print("Go Down.....");
                     yield break;
                 }
@@ -305,11 +326,11 @@ public class EnemyAİ : CharacterBase
             }
             print("current staga" + levelNumberForAWin);
             agent.SetDestination(secondtStagepaths[1].position);
-            if (isOnStairs && cubePicker.PickecObjects.Count <= 1)
+            if (onStairs && cubePicker.PickecObjects.Count <= 1)
             {
                 print("Go Down.....");
                 yield return new WaitForSeconds(waitTimeToGoBack);
-                enemyState = EnemyState.GoToDownState;
+                enemyState = EnemyStateEnum.GoToDownState;
                 yield break;
             }
             yield return null;
@@ -322,19 +343,21 @@ public class EnemyAİ : CharacterBase
       
         if (targetCubeList.Count >= 1)
         {
-           
-            Vector3 targetPosition = targetCubeList[0].transform.position;
-            transform.position = Vector3.MoveTowards(transform.position, targetCubeList[0].transform.position, moveSpeed * Time.deltaTime);
-            Quaternion lookDirection = Quaternion.LookRotation(targetPosition - transform.position).normalized;
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookDirection, turnSpeed * Time.deltaTime);
+            agent.enabled = true;
+            agent.SetDestination(targetCubeList[0].transform.position);
+            //Vector3 targetPosition = targetCubeList[0].transform.position;
+            //transform.position = Vector3.MoveTowards(transform.position, targetCubeList[0].transform.position, moveSpeed * Time.deltaTime);
+            //Quaternion lookDirection = Quaternion.LookRotation(targetPosition - transform.position).normalized;
+            //transform.rotation = Quaternion.Slerp(transform.rotation, lookDirection, turnSpeed * Time.deltaTime);
            
             yield return null;
             if (randomNuber > maxNumber)
             {
                 
-                enemyState = EnemyState.GoToTarget;
-             
+                enemyState = EnemyStateEnum.GoToTarget;
+              
                 agent.enabled = true;
+
                 yield break;
             }
         }
@@ -344,10 +367,9 @@ public class EnemyAİ : CharacterBase
   
     public override void SpawnCubes(Transform GroundPlane)
     {
-        
+        OnDoorOpened?.Invoke(this, EventArgs.Empty);
         if (!isCubesSpwanedOnUpperPlane)
         {
-            isCubesSpwanedOnUpperPlane = true;
             upperPlane = GroundPlane;
             SpawnSytem.Instance.OnDoorOpened(upperPlane);
            
@@ -355,11 +377,19 @@ public class EnemyAİ : CharacterBase
             OnRespawndedCubesUpdateTargetListAndEnemyState();
             print("spawnCubes on Upper Plane");
             isDoorOpened = true;
+            isCubesSpwanedOnUpperPlane = true;
         }
-        else if (levelNumberForAWin >= 2)
+        else
         {
-            WinManager.Instance.DeclareWinner();
+            //OnRespawndedCubesUpdateTargetListAndEnemyState();
+            print("cubes already spawned");
+            // enemyStateMachine = new CollectCubesState(agent, animator, targetCubeList, enemyData, characterColorType, isDoorOpened);
+            OnRespawndedCubesUpdateTargetListAndEnemyState();
         }
+        //else if (levelNumberForAWin >= 2)
+        //{
+        //    WinManager.Instance.DeclareWinner();
+        //}
     }
     public override void IncreaseNumber()
     {
@@ -374,42 +404,43 @@ public class EnemyAİ : CharacterBase
     }
     private IEnumerator RespawnEventCoroutine()
     {
-        
-        yield return new WaitForSeconds(1);
-        targetCubeList.Clear();
-        if (characterColorType == CharacterColorType.Red)
-        {
-            targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[2].Length];
-            targetCubes = SpawnSytem.Instance.CubeInstaintaited[2];
-            targetCubeList = new List<CubeBase>();
-            targetCubeList = targetCubes.ToList();
-        }
-        else if (characterColorType == CharacterColorType.Blue)
-        {
-            targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[0].Length];
-            targetCubes = SpawnSytem.Instance.CubeInstaintaited[0];
-            targetCubeList = new List<CubeBase>();
-            targetCubeList = targetCubes.ToList();
-        }
-        else if (characterColorType == CharacterColorType.Green)
-        {
-            targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[1].Length];
-            targetCubes = SpawnSytem.Instance.CubeInstaintaited[1];
-            targetCubeList = new List<CubeBase>();
-            targetCubeList = targetCubes.ToList();
-        }
-        yield return new WaitForSeconds(1);
-        agent.enabled = false;
-      
-        levelNumberForAWin++;
-        ClampWinLevelNumneer();
-        randomNuber = UnityEngine.Random.Range(minNumber, maxNumber); 
-        enemyState = EnemyState.CollectingCubeState;
-       
+      yield return new WaitForSeconds(0.25f);
+      targetCubeList.Clear();
+      if (characterColorType == CharacterColorType.Red)
+      {
+          targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[2].Length];
+          targetCubes = SpawnSytem.Instance.CubeInstaintaited[2];
+          targetCubeList = new List<CubeBase>();
+          targetCubeList = targetCubes.ToList();
+      }
+      else if (characterColorType == CharacterColorType.Blue)
+      {
+          targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[0].Length];
+          targetCubes = SpawnSytem.Instance.CubeInstaintaited[0];
+          targetCubeList = new List<CubeBase>();
+          targetCubeList = targetCubes.ToList();
+      }
+      else if (characterColorType == CharacterColorType.Green)
+      {
+          targetCubes = new BlueCube[SpawnSytem.Instance.CubeInstaintaited[1].Length];
+          targetCubes = SpawnSytem.Instance.CubeInstaintaited[1];
+          targetCubeList = new List<CubeBase>();
+          targetCubeList = targetCubes.ToList();
+      }
+      yield return new WaitForSeconds(0.2f);
+     
+     
+       levelNumberForAWin++;
+       ClampWinLevelNumneer();
+       randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
+       enemyStateMachine = new CollectCubesState(agent, animator, targetCubeList, enemyData, characterColorType, isDoorOpened);
+
     }
 
     public override void PlayAnimationsOnWin(bool isThisWiner)
     {
+        agent.enabled = false;
+        GetComponent<CapsuleCollider>().enabled = false;
         if (isThisWiner)
         {
             animator.SetTrigger("Win");
@@ -417,6 +448,10 @@ public class EnemyAİ : CharacterBase
         else
         {
             animator.SetTrigger("Sad");
+        }
+        for (int i = 1; i < transform.childCount; i++)
+        {
+            transform.GetChild(i).gameObject.SetActive(false);
         }
     }
 }
@@ -426,7 +461,7 @@ public enum CharacterColorType
     Blue,
     Green,
 }
-public enum EnemyState
+public enum EnemyStateEnum
 {
     CollectingCubeState,
     GoToUpState,
