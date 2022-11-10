@@ -9,6 +9,7 @@ public class PickObject : MonoBehaviour
 {
     public event EventHandler<CubeBase> OnPickedCube;
     [SerializeField] private Transform firstCube;
+     public Transform FirstCube { get { return firstCube; } set { firstCube = value; } }
     public Color FirstCubeColor;
     [SerializeField] private Transform cubeParent;
     [SerializeField] private Vector3 offset; 
@@ -147,7 +148,7 @@ public class PickObject : MonoBehaviour
        
         other.transform.parent = cubeParent;
       
-        //await TransformCubes(other.transform, targetPosition);
+      
         await TweenBricks(other.transform, targetPosition);
 
 
@@ -160,12 +161,7 @@ public class PickObject : MonoBehaviour
         isPicked = false;
 
     }
-    private async Task TransformCubes(Transform target,Vector3 targetPosition)
-    {
-        await  TweenBricks(target, targetPosition);
-       
-       
-    }
+  
     private async Task TweenBricks(Transform target,Vector3 targetPosition)
     {
         target.transform.localScale = new Vector3(0.55356878f, 1, 0.520956397f);
@@ -173,12 +169,15 @@ public class PickObject : MonoBehaviour
      
         target.transform.DOLocalJump(targetPosition, jumpPower, numberOfJumps, tweenTime).OnComplete(() =>
        {
-          
-           print("tween finished");
            target.GetComponent<CubeBase>().StopTrailRendereOnTop();
        });
         await Task.Yield();
 
 
+    }
+    public void ResetCollectingPosition()
+    {
+        targetPosition = firstCube.localPosition;
+       
     }
 }

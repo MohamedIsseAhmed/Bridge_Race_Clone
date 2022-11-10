@@ -5,11 +5,15 @@ using UnityEngine.AI;
 using System;
 using System.Threading.Tasks;
 using System.Linq;
-
+using DG.Tweening;
 public class EnemyAİ : CharacterBase
 {
     [SerializeField] private LayerMask layerMask;
+    [SerializeField] private Vector3 jumpOffset; 
     [SerializeField] private float sphereRadius = 2f;
+    [SerializeField] private float jumpPower = 2f;
+    [SerializeField] private int numberOfJumps = 2;
+    [SerializeField] private float jumpDuration = 2f;
     [SerializeField] private float distanceToCube = 2f;
     [SerializeField] private float turnSpeed = 5f;
     [SerializeField] private float moveSpeed = 8f;
@@ -19,12 +23,14 @@ public class EnemyAİ : CharacterBase
     [SerializeField] private float angel = 90f;
     [SerializeField] Collider[] resultHits;
     [SerializeField] private Animator animator;
- 
+    [SerializeField] private Animation[] animationClips;
+   
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private Transform[]  firstStagepaths;
     [SerializeField] private Transform[]  secondtStagepaths;
     [SerializeField] private PickObject cubePicker;
     [SerializeField] private Transform doorTrigger;
+    [SerializeField] private Transform cubeParent;
     [SerializeField] private CharacterColorType characterColorType;
     [SerializeField] private  CubeBase[] targetCubes;
     [SerializeField] private List<CubeBase> targetCubeList;
@@ -46,11 +52,15 @@ public class EnemyAİ : CharacterBase
     [SerializeField] private EnemyDataSO enemyData;
     private EnemyState enemyStateMachine;
     public event EventHandler OnDoorOpened;
+    private bool hasJumped = false;
+    private Rigidbody rigidbody;
     private void Awake()
     {
         enemyState = EnemyStateEnum.CollectingCubeState;
         agent = GetComponent<NavMeshAgent>();
-       
+        rigidbody = GetComponent<Rigidbody>();
+
+
     }
     private void  Start()
     {
@@ -91,46 +101,16 @@ public class EnemyAİ : CharacterBase
 
     private void Update()
     {
-       enemyStateMachine=enemyStateMachine.ProcessStates();
-    }
-
-    private void ProseccAIStates()
-    {
-        if (WinManager.Instance.IsGameOver)
+        if (hasJumped)
         {
-            if (agent.enabled)
-            {
-                agent.isStopped = true;
-            }
-         
             return;
         }
-        switch (enemyState)
-        {
-            case EnemyStateEnum.CollectingCubeState:
-                StartCoroutine(CollectCubeCoroutine());
-                break;
-            case EnemyStateEnum.GoToTarget:
-                StartCoroutine(GoToTarget1Coroutine());
-                break;
-            case EnemyStateEnum.GoToUpState:
-                StartCoroutine(GoToPath2Coroutine());
-                break;
-            case EnemyStateEnum.GoToDownState:
-                StartCoroutine(GoToTarget1Coroutine());
-                break;
-            case EnemyStateEnum.WaitingState:
-                StartCoroutine(WaitingCoroutine());
-                break;
-            case EnemyStateEnum.WinState:
 
-                break;
-            case EnemyStateEnum.GameOverState:
-                break;
-            default:
-                break;
-        }
+       enemyStateMachine = enemyStateMachine.ProcessStates();
+   
     }
+
+   
 
     private void RemovePickedCubeFromLits(object s,CubeBase cubeBase)
     {
@@ -145,45 +125,16 @@ public class EnemyAİ : CharacterBase
       
     }
     
-  
-    public override void ChechGround()
+    public void BackToCollectingCubesStateAnimationEvenet()
     {
-        Ray ray = new Ray(transform.position + Vector3.forward * rayOffsetDistance + Vector3.up * 0.1f, Vector3.down);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, rayDistance, groundLayer))
-        {
-            if (hit.collider.transform.CompareTag("drop") && !hit.collider.gameObject.GetComponent<MeshRenderer>().enabled)
-            {
-                Debug.DrawLine(ray.origin, desiredPosition * 10, Color.black);
-                print("stop");
-
-                onStairs = true;
-            }
-            else if (hit.collider.transform.CompareTag("drop") && hit.collider.gameObject.GetComponent<MeshRenderer>().enabled)
-            {
-                print("go on");
-                //desiredPosition.y += gravityModifier * Time.deltaTime;
-
-                onStairs = false;
-            }
-            
-            //if (hit.collider.CompareTag("Slope"))
-            //{
-            //    isOnStairs = true;
-
-            //    desiredTurn = hit.collider.transform.right;
-            //    Debug.DrawRay(ray.origin, ray.direction * 10, Color.red);
-            //}
-
-            //else
-            //{
-            //    isOnStairs = false;
-            //}
-            Debug.DrawRay(ray.origin, ray.direction * 10, Color.red);
-        }
-      
+        
+        enemyStateMachine = new CollectCubesState(agent, animator, targetCubeList, enemyData, characterColorType, isDoorOpened);
+        enemyStateMachine = enemyStateMachine.ProcessStates();
+        agent.enabled = true;
+        hasJumped = false;
     }
-    private void OnTriggerEnter(Collider other)
+ 
+    private  void OnTriggerEnter(Collider other)
     {
         if (other.transform.CompareTag("door"))
         {
@@ -192,7 +143,45 @@ public class EnemyAİ : CharacterBase
 
 
         }
+        else if (other.transform.CompareTag("Player") && !hasJumped)
+        {
+           StartCoroutine(Jump(other.transform));
+        }
     }
+    private IEnumerator  Jump(Transform other)
+    {
+       
+        hasJumped = true;
+     
+        enemyStateMachine = new JumpState(agent, animator, targetCubeList, enemyData, characterColorType, isDoorOpened);
+        enemyStateMachine = enemyStateMachine.ProcessStates();
+        rigidbody.isKinematic = false;
+        rigidbody.useGravity = true;
+      
+        for (int i = 1; i < cubeParent.childCount; i++)
+        {
+        
+            GameObject toRemove = cubeParent.GetChild(i).gameObject;
+            cubePicker.PickecObjects.Remove(toRemove.transform);
+          
+            Destroy(toRemove);
+
+        }
+        cubePicker.FirstCube = cubeParent.GetChild(0).transform;
+        cubePicker.ResetCollectingPosition();
+       
+        transform.DOLocalJump(transform.position + jumpOffset, jumpPower, numberOfJumps, jumpDuration).OnComplete(() =>
+        {
+            rigidbody.isKinematic = true;
+            rigidbody.useGravity = false;
+           
+
+        });
+        yield return null;
+        
+        
+    }
+  
     private IEnumerator WaitingCoroutine()
     {
         if (agent.enabled)
@@ -207,164 +196,7 @@ public class EnemyAİ : CharacterBase
         }
         
     }
-    public override void HandleMovemnt()
-    {
-        throw new NotImplementedException();
-    }
-    private IEnumerator GoToTarget1Coroutine()
-    {
-        if (levelNumberForAWin == 1)
-        {
-            if (agent.enabled)
-            {
-                agent.isStopped = false;
-            }
-            agent.SetDestination(firstStagepaths[0].position);
-          
-            if (Vector3.Distance(firstStagepaths[0].position, transform.position) <= distanceToCube )
-            {
-                if (!onStairs && cubePicker.PickecObjects.Count > 1)
-                {
-                    enemyState = EnemyStateEnum.GoToUpState;
-                    yield break;
-                }
-                else if(cubePicker.PickecObjects.Count <= 1)
-                {
-                   
-                 
-                    randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
-                    enemyState = EnemyStateEnum.CollectingCubeState;
-                    yield break;
-                }
-            
-            }
-          
-            yield return null;
-        }
-        else if(levelNumberForAWin == 2)
-        {
-            if (agent.enabled)
-            {
-                agent.isStopped = false;
-            }
-            agent.SetDestination(secondtStagepaths[0].position);
-
-            if (Vector3.Distance(secondtStagepaths[0].position, transform.position) <= distanceToCube)
-            {
-                Debug.DrawRay(transform.position,-transform.up * 10, Color.blue);
-
-                if (!onStairs && cubePicker.PickecObjects.Count > 1)
-                {
-                    enemyState = EnemyStateEnum.GoToUpState;
-                    yield break;
-                }
-                else if (cubePicker.PickecObjects.Count <= 1)
-                {
-                  
-                    randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
-                    enemyState = EnemyStateEnum.CollectingCubeState;
-                    yield break;
-                }
-
-            }
-           
-            yield return null;
-        }
-      
-    }
-    private void ClampWinLevelNumneer()
-    {
-        levelNumberForAWin = Mathf.Clamp(levelNumberForAWin, minWinLevelNumber, maxWinLevelNumber);
-    }
-    private IEnumerator GoToPath2Coroutine()
-    {
-        
-        if (levelNumberForAWin == 1)
-        {
-
-           
-            agent.SetDestination(firstStagepaths[1].position);
-
-            if (onStairs && cubePicker.PickecObjects.Count <= 1 )
-            {
-               
-                if (isDoorOpened && isCubesSpwanedOnUpperPlane)
-                {
-                    
-                    if (agent.enabled)
-                    {
-                        agent.isStopped = true;
-                    }
-                    ClampWinLevelNumneer();
-                    OnRespawndedCubesUpdateTargetListAndEnemyState();
-                     yield break;
-                }
-                else
-                {
-                    yield return null;
-                    if (agent.enabled)
-                    {
-                        agent.isStopped = true;
-                    }
-                
-                    enemyState = EnemyStateEnum.GoToDownState;
-                    print("Go Down.....");
-                    yield break;
-                }
-               
-              
-              
-            }
-            print("levelNumberForAWin:" + levelNumberForAWin);
-            yield return null;
-        }
-        else if (levelNumberForAWin == 2)
-        {
-            if (agent.isStopped)
-            {
-                agent.isStopped = false;
-            }
-            print("current staga" + levelNumberForAWin);
-            agent.SetDestination(secondtStagepaths[1].position);
-            if (onStairs && cubePicker.PickecObjects.Count <= 1)
-            {
-                print("Go Down.....");
-                yield return new WaitForSeconds(waitTimeToGoBack);
-                enemyState = EnemyStateEnum.GoToDownState;
-                yield break;
-            }
-            yield return null;
-        }
-        yield return null;
-    }
-  
-    private IEnumerator CollectCubeCoroutine()
-    {
-      
-        if (targetCubeList.Count >= 1)
-        {
-            agent.enabled = true;
-            agent.SetDestination(targetCubeList[0].transform.position);
-            //Vector3 targetPosition = targetCubeList[0].transform.position;
-            //transform.position = Vector3.MoveTowards(transform.position, targetCubeList[0].transform.position, moveSpeed * Time.deltaTime);
-            //Quaternion lookDirection = Quaternion.LookRotation(targetPosition - transform.position).normalized;
-            //transform.rotation = Quaternion.Slerp(transform.rotation, lookDirection, turnSpeed * Time.deltaTime);
-           
-            yield return null;
-            if (randomNuber > maxNumber)
-            {
-                
-                enemyState = EnemyStateEnum.GoToTarget;
-              
-                agent.enabled = true;
-
-                yield break;
-            }
-        }
-        yield return null;
-
-    }
-  
+   
     public override void SpawnCubes(Transform GroundPlane)
     {
         OnDoorOpened?.Invoke(this, EventArgs.Empty);
@@ -381,22 +213,17 @@ public class EnemyAİ : CharacterBase
         }
         else
         {
-            //OnRespawndedCubesUpdateTargetListAndEnemyState();
-            print("cubes already spawned");
-            // enemyStateMachine = new CollectCubesState(agent, animator, targetCubeList, enemyData, characterColorType, isDoorOpened);
+           
             OnRespawndedCubesUpdateTargetListAndEnemyState();
         }
-        //else if (levelNumberForAWin >= 2)
-        //{
-        //    WinManager.Instance.DeclareWinner();
-        //}
+       
     }
     public override void IncreaseNumber()
     {
         levelNumberForAWin++;
        
         OnRespawndedCubesUpdateTargetListAndEnemyState();
-        ClampWinLevelNumneer();
+       
     }
     private void OnRespawndedCubesUpdateTargetListAndEnemyState()
     {
@@ -431,7 +258,7 @@ public class EnemyAİ : CharacterBase
      
      
        levelNumberForAWin++;
-       ClampWinLevelNumneer();
+     
        randomNuber = UnityEngine.Random.Range(minNumber, maxNumber);
        enemyStateMachine = new CollectCubesState(agent, animator, targetCubeList, enemyData, characterColorType, isDoorOpened);
 

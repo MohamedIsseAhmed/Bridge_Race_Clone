@@ -17,8 +17,14 @@ public abstract class CharacterBase : MonoBehaviour
     protected static bool isCubesSpwanedOnUpperPlane = false;
 
 
-    public abstract void ChechGround();
-    public abstract void HandleMovemnt();
+    public virtual void ChechGround()
+    {
+
+    }
+    public virtual void HandleMovemnt()
+    {
+
+    }
     public abstract void PlayAnimationsOnWin(bool isThisWiner);
     public abstract void SpawnCubes(Transform GroundPlane);
     public  virtual void IncreaseNumber()

@@ -52,7 +52,7 @@ public class WinManager : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.transform.CompareTag("Player") && !IsGameOver)
+        if ((other.transform.CompareTag("Player") || other.transform.CompareTag("Enemy"))&& !IsGameOver)
         {
             IsGameOver = true;
             StartCoroutine(CollidedWithCharacter(other));
@@ -68,9 +68,9 @@ public class WinManager : MonoBehaviour
         CharacterBase winerTransform = other.transform.GetComponent<CharacterBase>();
         winerTransform.GetComponent<Rigidbody>().isKinematic = true;
 
-        GameObject[] objectPickers = GameObject.FindGameObjectsWithTag("Player");
-        List<GameObject> characterList = objectPickers.OrderBy(g => g.transform.childCount).ToList();
-        characterList.Remove(other.gameObject);
+        CharacterBase[] objectPickers = GameObject.FindObjectsOfType<CharacterBase>();
+        List<CharacterBase> characterList = objectPickers.OrderBy(g => g.transform.childCount).ToList();
+        characterList.Remove(other.GetComponent<CharacterBase>());
         if (winerTransform != null)
         {
 
@@ -86,7 +86,7 @@ public class WinManager : MonoBehaviour
         StartCoroutine(PlayParticleSystem());
     }
 
-    private IEnumerator TransformCharactersToWinPositins(List<GameObject> characterList)
+    private IEnumerator TransformCharactersToWinPositins(List<CharacterBase> characterList)
     {
         for (int i = 0; i < characterList.Count; i++)
         {

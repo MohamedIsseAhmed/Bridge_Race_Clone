@@ -57,6 +57,11 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 10
       objectReference: {fileID: 0}
+    - target: {fileID: 2728893935873825114, guid: d2e3239760400c34e867db498911d634,
+        type: 3}
+      propertyPath: m_TagString
+      value: Enemy
+      objectReference: {fileID: 0}
     - target: {fileID: 3356635547745010656, guid: d2e3239760400c34e867db498911d634,
         type: 3}
       propertyPath: m_RootOrder
@@ -114,6 +119,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8679851465675086234, guid: d2e3239760400c34e867db498911d634,
         type: 3}
+      propertyPath: m_WarningMessage
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 8679851465675086234, guid: d2e3239760400c34e867db498911d634,
+        type: 3}
       propertyPath: m_ApplyRootMotion
       value: 0
       objectReference: {fileID: 0}
@@ -154,6 +164,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f46b5a5d4d41f144285c68cbd26e5410, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!4 &5875334333111065626 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 456335500624995278, guid: d2e3239760400c34e867db498911d634,
+    type: 3}
+  m_PrefabInstance: {fileID: 6331036099864625108}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &8215306076818564750 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2728893935873825114, guid: d2e3239760400c34e867db498911d634,
@@ -170,10 +186,10 @@ CapsuleCollider:
   m_Material: {fileID: 0}
   m_IsTrigger: 1
   m_Enabled: 1
-  m_Radius: 0.19380069
-  m_Height: 0.429282
+  m_Radius: 0.13223186
+  m_Height: 0.39757723
   m_Direction: 1
-  m_Center: {x: 0, y: 0.18827292, z: 0.011256933}
+  m_Center: {x: 0.040884167, y: 0.17242053, z: 0.031941593}
 --- !u!195 &976895962
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -211,7 +227,11 @@ MonoBehaviour:
   layerMask:
     serializedVersion: 2
     m_Bits: 512
+  jumpOffset: {x: 0, y: 0, z: 0}
   sphereRadius: 0
+  jumpPower: 0.55
+  numberOfJumps: 0
+  jumpDuration: 0.46
   distanceToCube: 1
   turnSpeed: 10
   moveSpeed: 1.86
@@ -221,6 +241,7 @@ MonoBehaviour:
   angel: 90
   resultHits: []
   animator: {fileID: 3434378590151337550}
+  animationClips: []
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
@@ -232,6 +253,7 @@ MonoBehaviour:
   - {fileID: 0}
   cubePicker: {fileID: 5875334331976379850}
   doorTrigger: {fileID: 0}
+  cubeParent: {fileID: 5875334333111065626}
   characterColorType: 2
   targetCubes: []
   targetCubeList: []

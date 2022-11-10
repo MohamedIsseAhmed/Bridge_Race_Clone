@@ -15,6 +15,7 @@ TagManager:
   - door
   - picker
   - FinalGate
+  - Enemy
   layers:
   - Default
   - TransparentFX

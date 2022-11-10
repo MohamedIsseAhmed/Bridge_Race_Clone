@@ -13,6 +13,7 @@ public class CollectCubesState : EnemyState
 
     protected override void Enter()
     {
+        agent.enabled = true;
         enemyAÝ=agent.GetComponent<EnemyAÝ>();
         //enemyAÝ.OnDoorOpened += EnemyAÝ_OnDoorOpened;
         Debug.Log("Enter");
@@ -44,6 +45,7 @@ public class CollectCubesState : EnemyState
         }
        
     }
+    
     protected override void Exit()
     {
         Debug.Log(nextState.GetType().Name);
